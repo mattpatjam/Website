@@ -6,7 +6,9 @@ A private, single-user dashboard. Health data comes from Amazfit Helio Strap →
 
 **Cloudflare Workers + D1 (SQLite) + Cron Triggers**, TypeScript, [Hono](https://hono.dev).
 
-- **Cheap:** the free tier covers this (100k requests/day, 5 GB D1, cron included). The only running cost is the Claude API, roughly $2–3/month for one call a day.
+- **Cheap:** the free Workers plan covers day-to-day use (100k requests/day, 5 GB D1, cron included). The only running cost is the Claude API, roughly $2–3/month for one call a day.
+  - The free plan caps CPU at 10 ms per request. Measured locally: parsing a 60-day payload with hourly heart rate takes about 3 ms, recomputing 60 days about 3 ms, and the dashboard math about 1.5 ms. Hourly pushes are well inside the cap, but a big one-off backfill is close to it.
+  - Backfill in 2-week chunks (see step 3), or switch to Workers Paid ($5/month, 30 s CPU) if you ever see "Exceeded CPU" errors in the Cloudflare dashboard.
 - **Low maintenance:** one deployable unit with no separate database service, no containers and nothing to patch. Server-rendered HTML with inline SVG charts, so there's no frontend build step.
 - **Cron that fits:** one trigger every 30 min (calendar sync, recompute, morning run). Vercel's free tier only allows daily crons.
 - **Private by default:** HTTPS only (HSTS), strict CSP, `noindex`, no third-party scripts or analytics. Cloudflare's own request logs are the only telemetry.
@@ -123,7 +125,7 @@ The app needs the paid tier for REST API automations. In **Automations → +**:
 
 Then:
 
-- **Backfill once:** run each automation manually (or use Manual Export → REST API) with a **60-day** date range, so the 28-day baselines exist from day one.
+- **Backfill once** so the 28-day baselines exist from day one: use Manual Export → REST API to send the last **60 days**, in four 2-week chunks. That keeps each request well inside the free plan's CPU limit. Overlapping ranges are harmless.
 - **Check it landed:** **Settings → Recent health payloads** should show `parsed` with counts per metric. Errors appear there and in the job log. If a metric shows up under "skipped", its name differs from what the parser expects (see `METRIC_ALIASES` in `src/ingest/parse.ts`).
 - **Reliability:** iOS throttles background apps. To make sure last night's sleep arrives before 06:30, add a Shortcuts **personal automation** at **06:00** that runs Health Auto Export's "Dashboard metrics" automation. If sleep is late, the morning run waits and retries every 30 min until 10:00, then runs anyway.
 

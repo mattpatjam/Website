@@ -19,22 +19,37 @@ export interface LocalParts {
   minute: number;
 }
 
-/** Local (home timezone) calendar parts of a unix-seconds instant. */
-export function localParts(ts: number): LocalParts {
-  const p: Record<string, string> = {};
-  for (const x of partsFmt.formatToParts(new Date(ts * 1000))) p[x.type] = x.value;
-  return { date: `${p.year}-${p.month}-${p.day}`, hour: Number(p.hour), minute: Number(p.minute) };
-}
-
-export const localDate = (ts: number) => localParts(ts).date;
-
-/** Offset of the home timezone from UTC at `ts`, in seconds. */
-export function tzOffsetSec(ts: number): number {
+/** Offset of the home timezone from UTC at `ts`, in seconds (slow path via Intl). */
+function intlOffsetSec(ts: number): number {
   const p: Record<string, string> = {};
   for (const x of partsFmt.formatToParts(new Date(ts * 1000))) p[x.type] = x.value;
   const asUtc = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second) / 1000;
   return asUtc - Math.floor(ts);
 }
+
+// Offsets only change on the hour (DST), so cache per hour: Intl is ~5 µs a call,
+// which adds up on the free plan's 10 ms CPU budget when parsing thousands of samples.
+const offsetCache = new Map<number, number>();
+
+/** Offset of the home timezone from UTC at `ts`, in seconds. */
+export function tzOffsetSec(ts: number): number {
+  const key = Math.floor(ts / 3600);
+  let off = offsetCache.get(key);
+  if (off === undefined) {
+    if (offsetCache.size > 20000) offsetCache.clear();
+    off = intlOffsetSec(key * 3600);
+    offsetCache.set(key, off);
+  }
+  return off;
+}
+
+/** Local (home timezone) calendar parts of a unix-seconds instant. */
+export function localParts(ts: number): LocalParts {
+  const t = new Date((Math.floor(ts) + tzOffsetSec(ts)) * 1000);
+  return { date: t.toISOString().slice(0, 10), hour: t.getUTCHours(), minute: t.getUTCMinutes() };
+}
+
+export const localDate = (ts: number) => localParts(ts).date;
 
 /** Unix seconds of local midnight starting `date` (home timezone). */
 export function startOfLocalDay(date: string): number {

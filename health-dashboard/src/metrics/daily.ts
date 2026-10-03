@@ -184,8 +184,16 @@ export async function recomputeDays(env: Env, dates: Iterable<string>) {
        spo2_min = excluded.spo2_min, steps = excluded.steps, active_kcal = excluded.active_kcal,
        updated_at = excluded.updated_at`,
   );
+  // Index once so each day only scans its own samples (plus the previous day for overnight SpO2).
+  const byDate = new Map<string, SampleRow[]>();
+  for (const s of samples.results) {
+    const list = byDate.get(s.local_date);
+    if (list) list.push(s);
+    else byDate.set(s.local_date, [s]);
+  }
   const stmts = list.map((d) => {
-    const r = computeDay(d, samples.results, summaries.results, segments.results);
+    const near = [...(byDate.get(addDays(d, -1)) ?? []), ...(byDate.get(d) ?? [])];
+    const r = computeDay(d, near, summaries.results, segments.results);
     return stmt.bind(
       r.date, r.sleep_h, r.in_bed_h, r.deep_h, r.core_h, r.rem_h, r.awake_h, r.bed_ts, r.wake_ts,
       r.resting_hr, r.hrv, r.hrv_n, r.spo2, r.spo2_min, r.steps, r.active_kcal, now,

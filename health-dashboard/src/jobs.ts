@@ -19,6 +19,17 @@ export async function maybeGenerateRecommendations(env: Env, force = false): Pro
   const snap = await buildSnapshot(env, today, connected);
   const haveSleep = snap.days[snap.days.length - 1]?.sleep_h != null;
   if (!force && !haveSleep && now < localTimeOn(today, config.morningRunLatest)) return "waiting for last night's sleep data";
+  if (!force) {
+    // The cron and an incoming health push can race at 06:30: let only one of them call Claude.
+    // A failed run holds the claim for 10 minutes, which doubles as a retry back-off.
+    const claim = await env.DB.prepare(
+      `INSERT INTO settings (key, value, updated_at) VALUES (?, 'claimed', ?)
+       ON CONFLICT (key) DO UPDATE SET updated_at = excluded.updated_at WHERE settings.updated_at < ?`,
+    )
+      .bind(`recs_claim:${today}`, new Date().toISOString(), new Date(Date.now() - 10 * 60 * 1000).toISOString())
+      .run();
+    if (!claim.meta.changes) return "another run is in progress";
+  }
   try {
     await generateRecommendations(env, snap);
     return "generated";

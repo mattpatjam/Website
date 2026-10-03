@@ -56,3 +56,38 @@ describe("busyness", () => {
     expect(wed).toMatchObject({ hours: 0, heavy: false });
   });
 });
+
+describe("real-world calendar shapes (titles anonymised)", () => {
+  // As returned by the Calendar API for a Europe/Zurich calendar: explicit +02:00
+  // offsets, with timeZone labels of Europe/Paris or Asia/Makassar.
+  const raw = [
+    ["t1", "Court 5 (OUTDOOR/ single court)", "2026-10-03T11:00:00+02:00", "2026-10-03T12:00:00+02:00", "Asia/Makassar"],
+    ["m1", "Induction day 1", "2026-10-05T04:00:00+02:00", "2026-10-05T06:00:00+02:00", "Asia/Makassar"],
+    ["m2", "Induction day 1 (cont.)", "2026-10-05T08:00:00+02:00", "2026-10-05T10:00:00+02:00", "Asia/Makassar"],
+    ["m3", "Day 2 a", "2026-10-06T04:00:00+02:00", "2026-10-06T05:30:00+02:00", "Asia/Makassar"],
+    ["m4", "Day 2 b", "2026-10-06T05:30:00+02:00", "2026-10-06T07:00:00+02:00", "Asia/Makassar"],
+    ["m5", "Day 2 c", "2026-10-06T09:00:00+02:00", "2026-10-06T11:00:00+02:00", "Asia/Makassar"],
+    ["m6", "Day 4 full day", "2026-10-08T04:00:00+02:00", "2026-10-08T11:00:00+02:00", "Asia/Makassar"],
+    ["t2", "Court 2 (covered)", "2026-10-02T10:00:00+02:00", "2026-10-02T11:00:00+02:00", "Europe/Paris"],
+  ] as const;
+  const events = raw.map(([id, summary, s, e, tz]) =>
+    normaliseEvent({ id, summary, description: summary.startsWith("Court") ? "Réservation Tennis à Umalas - Liga.Tennis & Padel" : "", start: { dateTime: s, timeZone: tz }, end: { dateTime: e, timeZone: tz } }, "primary")!,
+  );
+
+  it("converts to Bali wall-clock time and tags the bookings", () => {
+    const at = (id: string) => events.find((e) => e.id === `primary:${id}`)!;
+    expect([fmtTime(at("t2").start_ts), at("t2").start_date, at("t2").is_tennis]).toEqual(["16:00", "2026-10-02", true]);
+    expect([fmtTime(at("t1").start_ts), at("t1").is_tennis]).toEqual(["17:00", true]);
+    expect([fmtTime(at("m1").start_ts), fmtTime(at("m6").end_ts)]).toEqual(["10:00", "17:00"]);
+  });
+
+  it("computes the week's busyness", () => {
+    const days = busynessByDay(events, "2026-10-05", "2026-10-08");
+    expect(days.map((d) => [d.date, d.hours, d.heavy, d.fullDay])).toEqual([
+      ["2026-10-05", 4, false, false],
+      ["2026-10-06", 5, true, false],
+      ["2026-10-07", 0, false, false],
+      ["2026-10-08", 7, true, true], // single 10:00–17:00 block
+    ]);
+  });
+});

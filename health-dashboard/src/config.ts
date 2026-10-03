@@ -27,8 +27,8 @@ export const config = {
     tennisDefaultIntensity: 6,
     /** A day is "heavy" at or above this many booked (non-tennis) hours. */
     heavyDayHours: 5,
-    /** A timed event this long or longer counts as a full-day block. */
-    fullDayBlockHours: 8,
+    /** A single timed event this long or longer counts as a full-day block (e.g. 10:00–17:00). */
+    fullDayBlockHours: 7,
   },
 
   training: {
