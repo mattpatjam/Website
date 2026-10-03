@@ -24,3 +24,11 @@
   to = "https://scale-rise.com/:splat"
   status = 301
   force = true
+
+# health-dashboard/ is a separate Cloudflare Worker app kept in this repo;
+# never serve its source from the marketing site.
+[[redirects]]
+  from = "/health-dashboard/*"
+  to = "/404.html"
+  status = 404
+  force = true

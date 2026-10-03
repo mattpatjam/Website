@@ -1,0 +1,6 @@
+INGEST_TOKEN=dev-ingest-token
+DASHBOARD_PASSWORD=dev-password
+SESSION_SECRET=dev-session-secret-change-me
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+ANTHROPIC_API_KEY=
