@@ -14,6 +14,13 @@ html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--page);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;
   padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
 main{max-width:640px;margin:0 auto;padding:12px 16px 48px}
+.menu{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:8px 16px;background:var(--page);border-bottom:1px solid var(--border)}
+.menu::-webkit-scrollbar{display:none}
+.menu a{flex:none;font-size:13px;padding:6px 12px;border-radius:999px;color:var(--text-2);text-decoration:none;background:var(--surface);border:1px solid var(--border)}
+.menu a:focus-visible{outline:2px solid var(--s1);outline-offset:2px}
+.card[id],.tiles[id]{scroll-margin-top:60px}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 header.top{display:flex;align-items:center;justify-content:space-between;gap:8px;max-width:640px;margin:0 auto;padding:12px 16px 0}
 header.top a{color:var(--text-2);text-decoration:none;font-size:14px}
 header.top nav{display:flex;gap:14px}

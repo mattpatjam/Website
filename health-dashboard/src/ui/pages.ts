@@ -39,7 +39,7 @@ function recCard(rec: StoredRecommendation | null, today: string): string {
   if (!rec) {
     const p = localParts(nowSec());
     const before = `${String(p.hour).padStart(2, "0")}:${String(p.minute).padStart(2, "0")}` < config.morningRunAt;
-    return `<section class="card"><h2>Today's plan</h2>
+    return `<section class="card" id="plan"><h2>Today's plan</h2>
       <p class="sub">${before ? `Generated after ${config.morningRunAt} once last night's sleep has synced.` : "Not generated yet. It runs automatically once sleep data arrives (latest " + config.morningRunLatest + ")."}</p>
       <form method="post" action="/actions/recommendations" class="inline"><button>Generate now</button></form></section>`;
   }
@@ -47,7 +47,7 @@ function recCard(rec: StoredRecommendation | null, today: string): string {
   const dayType: Record<string, string> = {
     train_hard: "Train hard", train_moderate: "Train moderate", train_light: "Train light", modified: "Modified session", rest: "Rest",
   };
-  return `<section class="card">
+  return `<section class="card" id="plan">
     <h2>${esc(c.headline)}</h2>
     <p class="sub">${esc(dayType[c.day_type] ?? c.day_type)}${c.best_slot ? ` · ${esc(c.best_slot)}` : ""}</p>
     <ul class="recs">${c.recommendations
@@ -67,7 +67,7 @@ export function dashboardPage(s: Snapshot, rec: StoredRecommendation | null, opt
   const last14 = s.days.slice(-14);
   const b = s.baselines;
 
-  const hero = `<section class="card">
+  const hero = `<section class="card" id="today">
     <div class="hero">
       <div class="ringwrap">${ring(R.score, tone)}<div class="num"><b>${R.score ?? "–"}</b><span>readiness</span></div></div>
       <div>
@@ -105,7 +105,7 @@ export function dashboardPage(s: Snapshot, rec: StoredRecommendation | null, opt
   });
   const usedSleepSeries = sleepSeries.filter((se) => sleepBars.some((bar) => (bar.values as Record<string, number | null>)[se.key]));
   const sc = s.sleepConsistency;
-  const sleep = `<section class="card">
+  const sleep = `<section class="card" id="sleep">
     <h2>Sleep</h2><p class="sub">Last night and the past 14 nights</p>
     <div class="kv">
       <div><small>Last night</small><b>${today.sleep_h != null ? fmtH(today.sleep_h) : "–"}</b> ${delta(today.sleep_h, b.sleep7, "h")}</div>
@@ -132,7 +132,7 @@ export function dashboardPage(s: Snapshot, rec: StoredRecommendation | null, opt
   // Heart
   const hrvVals = s.days.map((d) => d.hrv);
   const rhrVals = s.days.map((d) => d.resting_hr);
-  const heart = `<section class="card">
+  const heart = `<section class="card" id="heart">
     <h2>Heart</h2><p class="sub">vs your own 7- and 28-day baselines</p>
     <div class="kv">
       <div><small>HRV (latest)</small><b>${r0(today.hrv ?? s.days[s.days.length - 2]?.hrv)}</b><em> ms</em></div>
@@ -153,7 +153,7 @@ export function dashboardPage(s: Snapshot, rec: StoredRecommendation | null, opt
   const tile = (label: string, value: string, unit: string, values: (number | null)[]) =>
     `<div class="tile"><small>${label}</small><b>${value}</b><em> ${unit}</em>${sparkline(values, "var(--s1)")}</div>`;
   const yesterday = s.days[s.days.length - 2];
-  const tiles = `<div class="tiles">
+  const tiles = `<div class="tiles" id="vitals">
     ${tile("SpO₂ overnight", r1(today.spo2), "%", last14.map((d) => d.spo2))}
     ${tile("Steps (yday)", yesterday?.steps != null ? Math.round(yesterday.steps).toLocaleString("en-US") : "–", "", last14.map((d) => d.steps))}
     ${tile("Active (yday)", r0(yesterday?.active_kcal), "kcal", last14.map((d) => d.active_kcal))}
@@ -170,7 +170,7 @@ export function dashboardPage(s: Snapshot, rec: StoredRecommendation | null, opt
   const acwrTone = acwr == null ? "muted" : acwr > 1.5 ? "critical" : acwr > hi ? "warning" : acwr < lo ? "warning" : "good";
   const acwrLabel = acwr == null ? "Building history" : acwr > 1.5 ? "Spike, back off" : acwr > hi ? "High" : acwr < lo ? "Below usual" : "In the sweet spot";
   const recent = s.sessions.filter((x) => x.date >= addDays(s.today, -6)).reverse();
-  const training = `<section class="card">
+  const training = `<section class="card" id="training">
     <h2>Training load</h2><p class="sub">Load = minutes × intensity (1–10)</p>
     <div class="kv">
       <div><small>Acute (7d)</small><b>${s.load.acute}</b></div>
@@ -190,7 +190,7 @@ export function dashboardPage(s: Snapshot, rec: StoredRecommendation | null, opt
   // Calendar
   const week = dateRange(s.today, addDays(s.today, 6));
   const calendar = opts.googleConnected
-    ? `<section class="card">
+    ? `<section class="card" id="calendar">
     <h2>Calendar load</h2><p class="sub">Booked hours (tennis excluded) · heavy = ${config.calendar.heavyDayHours}h+ or a full-day block</p>
     ${stackedBars({
       bars: s.busyness.map((d) => ({
@@ -216,7 +216,7 @@ export function dashboardPage(s: Snapshot, rec: StoredRecommendation | null, opt
   </section>`
     : `<section class="card"><h2>Calendar</h2><p class="sub">Not connected yet.</p><a class="btn" href="/auth/google/start">Connect Google Calendar</a></section>`;
 
-  const table = `<details class="card"><summary>Data table (28 days)</summary><div class="tablewrap"><table>
+  const table = `<details class="card" id="data"><summary>Data table (28 days)</summary><div class="tablewrap"><table>
     <tr><th>Date</th><th>Sleep</th><th>Deep</th><th>REM</th><th>RHR</th><th>HRV</th><th>SpO₂</th><th>Steps</th><th>kcal</th></tr>
     ${[...s.days].reverse().map((d) => `<tr><td>${weekday(d.date)} ${short(d.date)}</td><td>${d.sleep_h != null ? fmtH(d.sleep_h) : "–"}</td><td>${r1(d.deep_h)}</td><td>${r1(d.rem_h)}</td><td>${r0(d.resting_hr)}</td><td>${r0(d.hrv)}</td><td>${r1(d.spo2)}</td><td>${r0(d.steps)}</td><td>${r0(d.active_kcal)}</td></tr>`).join("")}
   </table></div></details>`;
@@ -227,7 +227,10 @@ export function dashboardPage(s: Snapshot, rec: StoredRecommendation | null, opt
     <form method="post" action="/actions/sync" class="inline"> · <button style="padding:2px 8px;font-size:12px">Sync now</button></form></p>`;
 
   const flash = opts.flash ? `<p class="card note">${esc(opts.flash)}</p>` : "";
-  return layout(`${weekday(s.today)} ${short(s.today)}`, flash + hero + recCard(rec, s.today) + sleep + heart + tiles + training + calendar + table + foot);
+  // Section menu: sticky row of links to each part of the page.
+  const sections: [string, string][] = [["today", "Today"], ["plan", "Plan"], ["sleep", "Sleep"], ["heart", "Heart"], ["vitals", "Vitals"], ["training", "Training"], ["calendar", "Calendar"], ["data", "Data"]];
+  const menu = `<nav class="menu" aria-label="Sections">${sections.map(([id, label]) => `<a href="#${id}">${label}</a>`).join("")}</nav>`;
+  return layout(`${weekday(s.today)} ${short(s.today)}`, menu + flash + hero + recCard(rec, s.today) + sleep + heart + tiles + training + calendar + table + foot);
 }
 
 export function historyPage(recs: StoredRecommendation[]): string {
